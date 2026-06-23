@@ -750,7 +750,8 @@ button:focus-visible {
 }
 
 .verse-display p {
-  max-width: 42rem;
+  width: 100%;
+  max-width: none;
   margin: 0;
   font-size: var(--text-verse);
   line-height: var(--line-verse);
