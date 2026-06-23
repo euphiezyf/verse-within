@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Verse Within">
+  <rect width="100" height="100" rx="22" fill="#1C4A3A"/>
+  <path d="M50 62 C38 57 24 58 14 64 L14 80 C24 74 38 75 50 79 Z" fill="#F4F1E8"/>
+  <path d="M50 62 C62 57 76 58 86 64 L86 80 C76 74 62 75 50 79 Z" fill="#F4F1E8"/>
+  <line x1="22" y1="68" x2="41" y2="69" stroke="#74A892" stroke-width="1" opacity="0.45"/>
+  <line x1="59" y1="69" x2="78" y2="68" stroke="#74A892" stroke-width="1" opacity="0.45"/>
+  <line x1="50" y1="62" x2="50" y2="79" stroke="#1C4A3A" stroke-width="1.2"/>
+  <path d="M50 64 C49 54 50 46 50 38" fill="none" stroke="#5E8C76" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 50 C39 53 29 47 27 34 C38 34 47 41 50 50 Z" fill="#74A892"/>
+  <path d="M50 44 C61 47 71 41 73 28 C62 28 53 35 50 44 Z" fill="#74A892"/>
+  <path d="M49 49 L30 37" stroke="#A7CBB6" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+  <path d="M50 44 L70 31" stroke="#A7CBB6" stroke-width="0.9" fill="none" stroke-linecap="round"/>
+  <path d="M50 38 C46 31 47 22 50 16 C53 22 54 31 50 38 Z" fill="#9DC4AC"/>
+</svg>

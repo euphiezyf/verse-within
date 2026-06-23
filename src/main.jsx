@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Languages,
   Library,
   Mic,
   MoreVertical,
@@ -1212,7 +1213,7 @@ function App() {
       <section className="sidebar" aria-label="Verse Within navigation">
         <div className="brand">
           <div className="brand-mark">
-            <BookOpen size={24} />
+            <img src="/brand/icon.svg" alt="" aria-hidden="true" />
           </div>
           <div>
             <h1>{t.appName}</h1>
@@ -1318,20 +1319,42 @@ function App() {
           <div>
             <h2>{state.activeTab === "practice" ? t.practice : state.activeTab === "library" ? t.library : t.stats}</h2>
           </div>
-          {state.activeTab === "stats" ? (
-            <button
-              className="secondary-button topbar-account"
-              disabled={!supabase && !authState.user}
-              onClick={authState.user ? signOut : signInWithGoogle}
-            >
-              <span>{authState.user ? t.signOut : t.signInWithGoogle}</span>
-            </button>
-          ) : (
-            <button className="primary-button topbar-add" onClick={() => setShowForm(true)}>
-              <Plus size={18} />
-              <span>{t.addVerse}</span>
-            </button>
-          )}
+          <div className="topbar-actions">
+            <details className="mobile-language-menu">
+              <summary aria-label={t.uiLanguage}>
+                <Languages size={20} />
+              </summary>
+              <div className="mobile-language-list">
+                {[
+                  ["zh", t.zhName],
+                  ["en", t.en],
+                  ["ko", t.ko],
+                ].map(([language, label]) => (
+                  <button
+                    className={state.uiLanguage === language ? "active" : ""}
+                    key={language}
+                    onClick={() => updateUiLanguage(language)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </details>
+            {state.activeTab === "stats" ? (
+              <button
+                className="secondary-button topbar-account"
+                disabled={!supabase && !authState.user}
+                onClick={authState.user ? signOut : signInWithGoogle}
+              >
+                <span>{authState.user ? t.signOut : t.signInWithGoogle}</span>
+              </button>
+            ) : (
+              <button className="primary-button topbar-add" onClick={() => setShowForm(true)}>
+                <Plus size={18} />
+                <span>{t.addVerse}</span>
+              </button>
+            )}
+          </div>
         </header>
 
         {showForm && (
@@ -1692,7 +1715,7 @@ function PracticeView({
           ))}
         </div>
 
-        <div className={`verse-display verse-${verse.language}`}>
+        <div className={`verse-display verse-${verse.language} mode-${mode}`}>
           {mode === "read" && (
             <p>
               {verse.text}
@@ -1811,15 +1834,18 @@ function PracticeView({
         </div>
 
         {mode === "recall" && (
-          <div className="input-switch" aria-label={t.recall}>
-            <button className={recallInput === "type" ? "active" : ""} onClick={() => setRecallInput("type")}>
-              {t.type}
-            </button>
-            <button className={recallInput === "speech" ? "active" : ""} onClick={() => setRecallInput("speech")}>
-              {t.speakAloud}
-            </button>
-            <button className={showInitials ? "active" : ""} onClick={() => setShowInitials((current) => !current)}>
-              {t.hint}
+          <div className="recall-controls">
+            <div className="input-switch" aria-label={t.recall}>
+              <button className={recallInput === "type" ? "active" : ""} onClick={() => setRecallInput("type")}>
+                {t.type}
+              </button>
+              <button className={recallInput === "speech" ? "active" : ""} onClick={() => setRecallInput("speech")}>
+                {t.speakAloud}
+              </button>
+            </div>
+            <button className={`hint-toggle ${showInitials ? "active" : ""}`} onClick={() => setShowInitials((current) => !current)}>
+              <CircleHelp size={16} />
+              <span>{t.hint}</span>
             </button>
           </div>
         )}
