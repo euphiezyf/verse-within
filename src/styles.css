@@ -253,6 +253,84 @@ button:disabled {
   width: 100%;
 }
 
+.auth-note,
+.auth-error {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.auth-note {
+  color: #52645e;
+}
+
+.auth-error {
+  color: #a63d2d;
+}
+
+.sync-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(29, 37, 32, 0.28);
+}
+
+.sync-dialog {
+  display: grid;
+  gap: 1rem;
+  width: min(42rem, 100%);
+  padding: 1.1rem;
+  background: #fffefa;
+  border: 1px solid rgba(36, 92, 82, 0.16);
+  border-radius: 0.5rem;
+  box-shadow: 0 24px 70px rgba(29, 37, 32, 0.22);
+}
+
+.sync-dialog h3,
+.sync-dialog p {
+  margin: 0;
+}
+
+.sync-dialog h3 {
+  font-size: 1.15rem;
+}
+
+.sync-dialog p {
+  color: #52645e;
+  line-height: 1.45;
+}
+
+.sync-compare {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.sync-summary-card {
+  display: grid;
+  gap: 0.35rem;
+  min-height: 6rem;
+  padding: 0.85rem;
+  background: #f8fbf7;
+  border: 1px solid rgba(36, 92, 82, 0.12);
+  border-radius: 0.5rem;
+}
+
+.sync-summary-card span,
+.sync-summary-card small {
+  color: #63736d;
+}
+
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
 .settings-panel label {
   display: flex;
   align-items: center;
@@ -1009,7 +1087,8 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .plan-weeks {
+  .plan-weeks,
+  .sync-compare {
     grid-template-columns: 1fr;
   }
 }

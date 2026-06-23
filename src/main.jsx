@@ -47,6 +47,26 @@ const labels = {
     signOut: "Sign out",
     cloudReady: "Cloud sync ready",
     cloudNotReady: "Add Supabase keys to connect cloud sync.",
+    localModeTitle: "本地使用",
+    localModeBody: "进度保存在这个浏览器。登录后可备份并在其他设备继续。",
+    signedInTitle: "已登录",
+    syncedTitle: "进度已备份",
+    unsyncedTitle: "这台设备的进度尚未备份",
+    syncNow: "立即合并",
+    syncLater: "稍后再说",
+    mergeProgress: "合并进度",
+    useAccountProgress: "使用账号进度",
+    syncDialogTitle: "选择这台设备的起点",
+    syncDialogBody: "我们发现这台设备和你的账号可能有不同进度。合并会保留已完成记录、较高练习进度，并合并错词。",
+    deviceProgress: "这台设备",
+    accountProgress: "你的账号",
+    versesCount: "节经文",
+    completedCount: "已完成",
+    lastPracticed: "最近练习",
+    lastSynced: "上次同步",
+    justNow: "刚刚",
+    noCloudProgress: "账号里还没有进度",
+    syncError: "同步失败，请稍后再试。",
     reference: "经文出处",
     collection: "分类",
     verseText: "经文内容",
@@ -129,6 +149,26 @@ const labels = {
     signOut: "Sign out",
     cloudReady: "Cloud sync ready",
     cloudNotReady: "Add Supabase keys to connect cloud sync.",
+    localModeTitle: "Using this device",
+    localModeBody: "Progress is saved in this browser. Sign in to back up and continue on other devices.",
+    signedInTitle: "Signed in",
+    syncedTitle: "Progress backed up",
+    unsyncedTitle: "This device has progress not backed up",
+    syncNow: "Merge now",
+    syncLater: "Decide later",
+    mergeProgress: "Merge progress",
+    useAccountProgress: "Use account progress",
+    syncDialogTitle: "Choose how to start on this device",
+    syncDialogBody: "We found progress on this device and in your account. Merge keeps completed verses, stronger practice progress, and combines trouble words.",
+    deviceProgress: "This device",
+    accountProgress: "Your account",
+    versesCount: "verses",
+    completedCount: "completed",
+    lastPracticed: "last practiced",
+    lastSynced: "Last synced",
+    justNow: "just now",
+    noCloudProgress: "No account progress yet",
+    syncError: "Sync failed. Please try again.",
     reference: "Reference",
     collection: "Collection",
     verseText: "Verse text",
@@ -211,6 +251,26 @@ const labels = {
     signOut: "로그아웃",
     cloudReady: "클라우드 동기화 준비됨",
     cloudNotReady: "Supabase 키를 넣으면 클라우드 연결이 됩니다.",
+    localModeTitle: "이 기기에서 사용 중",
+    localModeBody: "진행도는 이 브라우저에 저장됩니다. 로그인하면 백업하고 다른 기기에서도 이어갈 수 있습니다.",
+    signedInTitle: "로그인됨",
+    syncedTitle: "진행도 백업됨",
+    unsyncedTitle: "이 기기의 진행도가 아직 백업되지 않았습니다",
+    syncNow: "지금 병합",
+    syncLater: "나중에 결정",
+    mergeProgress: "진행도 병합",
+    useAccountProgress: "계정 진행도 사용",
+    syncDialogTitle: "이 기기에서 시작할 방식을 선택하세요",
+    syncDialogBody: "이 기기와 계정에 다른 진행도가 있을 수 있습니다. 병합하면 완료 기록, 더 높은 연습 진행도, 어려운 단어가 함께 보존됩니다.",
+    deviceProgress: "이 기기",
+    accountProgress: "내 계정",
+    versesCount: "구절",
+    completedCount: "완료",
+    lastPracticed: "최근 연습",
+    lastSynced: "마지막 동기화",
+    justNow: "방금",
+    noCloudProgress: "계정에 아직 진행도가 없습니다",
+    syncError: "동기화에 실패했습니다. 잠시 후 다시 시도하세요.",
     reference: "본문",
     collection: "분류",
     verseText: "말씀",
@@ -613,9 +673,121 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function verseKey(verse) {
+  return normalize(verse.reference) + "::" + verse.language;
+}
+
+function latestDate(...values) {
+  return values.filter(Boolean).sort().at(-1) || null;
+}
+
+function mergeTrouble(localTrouble = {}, cloudTrouble = {}) {
+  const merged = { ...cloudTrouble };
+  Object.entries(localTrouble || {}).forEach(([word, count]) => {
+    merged[word] = (merged[word] || 0) + count;
+  });
+  return merged;
+}
+
+function strongerProgress(localProgress = resetProgress(), cloudProgress = resetProgress()) {
+  const localScore = (localProgress.level || 0) * 1000 + (localProgress.accuracy || 0) * 10 + (localProgress.attempts || 0);
+  const cloudScore = (cloudProgress.level || 0) * 1000 + (cloudProgress.accuracy || 0) * 10 + (cloudProgress.attempts || 0);
+  const chosen = localScore >= cloudScore ? localProgress : cloudProgress;
+  return {
+    ...chosen,
+    attempts: Math.max(localProgress.attempts || 0, cloudProgress.attempts || 0),
+    level: Math.max(localProgress.level || 0, cloudProgress.level || 0),
+    accuracy: Math.max(localProgress.accuracy || 0, cloudProgress.accuracy || 0),
+    nextReview: latestDate(localProgress.nextReview, cloudProgress.nextReview) || new Date().toISOString(),
+  };
+}
+
+function mergeVerse(localVerse, cloudVerse) {
+  if (!localVerse) return cloudVerse;
+  if (!cloudVerse) return localVerse;
+  const localUpdated = localVerse.updatedAt || localVerse.completedAt || localVerse.createdAt || "";
+  const cloudUpdated = cloudVerse.updatedAt || cloudVerse.completedAt || cloudVerse.createdAt || "";
+  const newer = localUpdated >= cloudUpdated ? localVerse : cloudVerse;
+  const completedAt = localVerse.completedAt || cloudVerse.completedAt;
+  const active = isActiveAssignment(localVerse) || isActiveAssignment(cloudVerse);
+  return {
+    ...newer,
+    id: newer.id || localVerse.id || cloudVerse.id,
+    reference: newer.reference || localVerse.reference || cloudVerse.reference,
+    language: newer.language || localVerse.language || cloudVerse.language,
+    collection: newer.collection || localVerse.collection || cloudVerse.collection,
+    text: newer.text || localVerse.text || cloudVerse.text,
+    createdAt: localVerse.createdAt || cloudVerse.createdAt || new Date().toISOString(),
+    updatedAt: latestDate(localVerse.updatedAt, cloudVerse.updatedAt) || new Date().toISOString(),
+    status: completedAt ? "completed" : active ? "active" : "library",
+    completedAt,
+    progress: strongerProgress(localVerse.progress, cloudVerse.progress),
+    trouble: mergeTrouble(localVerse.trouble, cloudVerse.trouble),
+  };
+}
+
+function mergeVerseLists(localVerses, cloudVerses) {
+  const byKey = new Map();
+  [...cloudVerses, ...localVerses].forEach((verse) => {
+    const key = verseKey(verse);
+    byKey.set(key, mergeVerse(byKey.get(key), verse));
+  });
+  return Array.from(byKey.values()).sort((a, b) =>
+    (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""),
+  );
+}
+
+function verseToCloudRow(verse, userId) {
+  const updatedAt = verse.updatedAt || verse.completedAt || verse.createdAt || new Date().toISOString();
+  return {
+    user_id: userId,
+    reference: verse.reference,
+    language: verse.language,
+    collection: verse.collection || "",
+    verse_text: verse.text || "",
+    progress: { ...verse.progress, status: verse.status || "active", updatedAt },
+    trouble: verse.trouble || {},
+    completed_at: verse.completedAt || null,
+    updated_at: updatedAt,
+  };
+}
+
+function cloudRowToVerse(row) {
+  const progress = row.progress || resetProgress();
+  return {
+    id: row.reference + "-" + row.language,
+    reference: row.reference,
+    language: row.language,
+    collection: row.collection || "",
+    text: row.verse_text || "",
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || progress.updatedAt || row.created_at || new Date().toISOString(),
+    status: row.completed_at ? "completed" : progress.status || "library",
+    completedAt: row.completed_at || undefined,
+    progress: {
+      level: progress.level || 0,
+      accuracy: progress.accuracy || 0,
+      attempts: progress.attempts || 0,
+      nextReview: progress.nextReview || new Date().toISOString(),
+    },
+    trouble: row.trouble || {},
+  };
+}
+
+function summarizeVerses(verses) {
+  const completed = verses.filter((verse) => isCompleted(verse)).length;
+  const dates = verses.flatMap((verse) => [verse.updatedAt, verse.completedAt, verse.progress?.nextReview]).filter(Boolean);
+  return {
+    verses: verses.length,
+    completed,
+    lastActivity: dates.sort().at(-1) || null,
+  };
+}
+
 function App() {
   const [state, setState] = useState(loadState);
   const [authState, setAuthState] = useState({ loading: true, session: null, user: null });
+  const [syncState, setSyncState] = useState({ mode: "local", loading: false, cloudVerses: [], lastSyncedAt: null, error: "" });
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedId, setSelectedId] = useState(state.verses[0]?.id);
@@ -664,6 +836,41 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!supabase || !authState.user) {
+      setSyncState((current) => ({ ...current, mode: "local", loading: false, cloudVerses: [], error: "" }));
+      return;
+    }
+
+    let cancelled = false;
+    async function loadCloudProgress() {
+      setSyncState((current) => ({ ...current, loading: true, error: "" }));
+      const { data, error } = await supabase
+        .from("verse_progress")
+        .select("reference, language, collection, verse_text, progress, trouble, completed_at, created_at, updated_at")
+        .eq("user_id", authState.user.id);
+      if (cancelled) return;
+      if (error) {
+        setSyncState((current) => ({ ...current, loading: false, mode: "local", error: t.syncError }));
+        return;
+      }
+      setSyncState({ mode: "pending", loading: false, cloudVerses: (data || []).map(cloudRowToVerse), lastSyncedAt: null, error: "" });
+    }
+
+    loadCloudProgress();
+    return () => {
+      cancelled = true;
+    };
+  }, [authState.user?.id, t.syncError]);
+
+  useEffect(() => {
+    if (!supabase || !authState.user || syncState.mode !== "synced") return;
+    const timeout = window.setTimeout(() => {
+      uploadVerses(state.verses, { quiet: true });
+    }, 900);
+    return () => window.clearTimeout(timeout);
+  }, [state.verses, authState.user?.id, syncState.mode]);
+
   const filteredVerses = useMemo(() => {
     return state.verses.filter((verse) => {
       const languageMatch = state.libraryLanguage === "all" || verse.language === state.libraryLanguage;
@@ -692,6 +899,10 @@ function App() {
   const averageAccuracy = practiced.length
     ? Math.round(practiced.reduce((sum, verse) => sum + verse.progress.accuracy, 0) / practiced.length)
     : 0;
+  const deviceSummary = summarizeVerses(state.verses);
+  const accountSummary = summarizeVerses(syncState.cloudVerses);
+  const showSyncChoice = Boolean(authState.user && syncState.mode === "pending" && !syncState.loading);
+  const hasUnsyncedLocal = Boolean(authState.user && syncState.mode === "later");
 
   function updateUiLanguage(language) {
     setState((current) => ({ ...current, uiLanguage: language }));
@@ -714,6 +925,49 @@ function App() {
     await supabase.auth.signOut();
   }
 
+  async function uploadVerses(verses, options = {}) {
+    if (!supabase || !authState.user) return false;
+    if (!options.quiet) {
+      setSyncState((current) => ({ ...current, loading: true, error: "" }));
+    }
+    const rows = verses.map((verse) => verseToCloudRow(verse, authState.user.id));
+    if (!rows.length) {
+      setSyncState((current) => ({ ...current, mode: "synced", loading: false, cloudVerses: [], lastSyncedAt: new Date().toISOString(), error: "" }));
+      return true;
+    }
+    const { error } = await supabase.from("verse_progress").upsert(rows, { onConflict: "user_id,reference,language" });
+    if (error) {
+      setSyncState((current) => ({ ...current, loading: false, error: t.syncError }));
+      return false;
+    }
+    const now = new Date().toISOString();
+    setSyncState((current) => ({
+      ...current,
+      mode: "synced",
+      loading: false,
+      cloudVerses: verses,
+      lastSyncedAt: now,
+      error: "",
+    }));
+    return true;
+  }
+
+  async function mergeLocalWithAccount() {
+    const merged = mergeVerseLists(state.verses, syncState.cloudVerses);
+    setState((current) => ({ ...current, verses: merged }));
+    await uploadVerses(merged);
+  }
+
+  function useAccountProgress() {
+    if (!syncState.cloudVerses.length) return;
+    setState((current) => ({ ...current, verses: syncState.cloudVerses }));
+    setSyncState((current) => ({ ...current, mode: "synced", lastSyncedAt: new Date().toISOString(), error: "" }));
+  }
+
+  function decideLater() {
+    setSyncState((current) => ({ ...current, mode: "later", error: "" }));
+  }
+
   function saveVerse(event) {
     event.preventDefault();
     if (!form.reference.trim() || !form.text.trim()) return;
@@ -725,6 +979,7 @@ function App() {
       language,
       text: form.text.trim(),
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       progress: { level: 1, accuracy: 0, attempts: 0, nextReview: new Date().toISOString() },
       status: "active",
       trouble: {},
@@ -740,24 +995,33 @@ function App() {
     setResult(null);
   }
 
-  function removeVerse(id) {
+  async function removeVerse(id) {
+    const target = state.verses.find((verse) => verse.id === id);
     setState((current) => ({
       ...current,
       verses: current.verses.filter((verse) => verse.id !== id),
     }));
+    if (supabase && authState.user && syncState.mode === "synced" && target) {
+      await supabase
+        .from("verse_progress")
+        .delete()
+        .eq("user_id", authState.user.id)
+        .eq("reference", target.reference)
+        .eq("language", target.language);
+    }
   }
 
   function resetTrouble(id) {
     setState((current) => ({
       ...current,
-      verses: current.verses.map((verse) => (verse.id === id ? { ...verse, trouble: {} } : verse)),
+      verses: current.verses.map((verse) => (verse.id === id ? { ...verse, trouble: {}, updatedAt: new Date().toISOString() } : verse)),
     }));
   }
 
   function resetAllTrouble() {
     setState((current) => ({
       ...current,
-      verses: current.verses.map((verse) => ({ ...verse, trouble: {} })),
+      verses: current.verses.map((verse) => ({ ...verse, trouble: {}, updatedAt: new Date().toISOString() })),
     }));
   }
 
@@ -771,6 +1035,7 @@ function App() {
               ...verse,
               status: "completed",
               completedAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
               progress: { ...verse.progress, level: Math.max(verse.progress.level, 4) },
             }
           : verse,
@@ -794,6 +1059,7 @@ function App() {
           ? {
               ...verse,
               status: "library",
+              updatedAt: new Date().toISOString(),
             }
           : verse,
       ),
@@ -819,6 +1085,7 @@ function App() {
               ...verse,
               status: "active",
               completedAt: undefined,
+              updatedAt: new Date().toISOString(),
               progress: isCompleted(verse) ? resetProgress() : verse.progress,
               trouble: isCompleted(verse) ? {} : verse.trouble,
             }
@@ -853,6 +1120,7 @@ function App() {
         return {
           ...verse,
           trouble: mergedTrouble,
+          updatedAt: new Date().toISOString(),
           progress: {
             level,
             attempts: verse.progress.attempts + 1,
@@ -929,20 +1197,64 @@ function App() {
           ) : authState.user ? (
             <>
               <div className="auth-user">
-                <strong>{authState.user.email || authState.user.user_metadata?.full_name || "Signed in"}</strong>
-                <small>{authState.user.user_metadata?.full_name || authState.user.email}</small>
+                <strong>{authState.user.email || authState.user.user_metadata?.full_name || t.signedInTitle}</strong>
+                <small>{syncState.mode === "synced" ? t.syncedTitle : hasUnsyncedLocal ? t.unsyncedTitle : t.signedInTitle}</small>
               </div>
-              <button className="secondary-button" onClick={signOut}>
+              {syncState.lastSyncedAt && (
+                <p className="auth-note">
+                  {t.lastSynced}: {t.justNow}
+                </p>
+              )}
+              {syncState.error && <p className="auth-error">{syncState.error}</p>}
+              {(showSyncChoice || hasUnsyncedLocal) && (
+                <button className="secondary-button auth-button" onClick={mergeLocalWithAccount} disabled={syncState.loading}>
+                  <span>{syncState.loading ? "..." : t.syncNow}</span>
+                </button>
+              )}
+              <button className="ghost-button auth-button" onClick={signOut}>
                 <span>{t.signOut}</span>
               </button>
             </>
           ) : (
-            <button className="primary-button auth-button" onClick={signInWithGoogle} disabled={!supabase}>
-              <span>{t.signInWithGoogle}</span>
-            </button>
+            <>
+              <div className="auth-user">
+                <strong>{t.localModeTitle}</strong>
+                <small>{t.localModeBody}</small>
+              </div>
+              <button className="primary-button auth-button" onClick={signInWithGoogle} disabled={!supabase}>
+                <span>{t.signInWithGoogle}</span>
+              </button>
+            </>
           )}
         </div>
       </section>
+
+      {showSyncChoice && (
+        <div className="sync-overlay" role="dialog" aria-modal="true" aria-label={t.syncDialogTitle}>
+          <section className="sync-dialog">
+            <div>
+              <h3>{t.syncDialogTitle}</h3>
+              <p>{t.syncDialogBody}</p>
+            </div>
+            <div className="sync-compare">
+              <SyncSummaryCard title={t.deviceProgress} summary={deviceSummary} t={t} />
+              <SyncSummaryCard title={t.accountProgress} summary={accountSummary} t={t} emptyLabel={t.noCloudProgress} />
+            </div>
+            {syncState.error && <p className="auth-error">{syncState.error}</p>}
+            <div className="sync-actions">
+              <button className="primary-button" onClick={mergeLocalWithAccount} disabled={syncState.loading}>
+                <span>{syncState.loading ? "..." : t.mergeProgress}</span>
+              </button>
+              <button className="secondary-button" onClick={useAccountProgress} disabled={!accountSummary.verses || syncState.loading}>
+                <span>{t.useAccountProgress}</span>
+              </button>
+              <button className="ghost-button" onClick={decideLater}>
+                <span>{t.syncLater}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <section className="workspace">
         <header className="topbar">
@@ -1061,6 +1373,26 @@ function TabButton({ icon, label, active, onClick }) {
       {icon}
       <span>{label}</span>
     </button>
+  );
+}
+
+function SyncSummaryCard({ title, summary, t, emptyLabel }) {
+  return (
+    <article className="sync-summary-card">
+      <strong>{title}</strong>
+      {summary.verses ? (
+        <>
+          <span>
+            {summary.verses} {t.versesCount} · {summary.completed} {t.completedCount}
+          </span>
+          <small>
+            {t.lastPracticed}: {summary.lastActivity ? formatDateTime(summary.lastActivity) : "-"}
+          </small>
+        </>
+      ) : (
+        <span>{emptyLabel}</span>
+      )}
+    </article>
   );
 }
 
