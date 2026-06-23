@@ -27,10 +27,44 @@ import {
 import "./styles.css";
 
 const STORAGE_KEY = "verse-within-state-v1";
+const ANALYTICS_ANONYMOUS_KEY = "verse-within-anonymous-id";
+const ANALYTICS_SESSION_KEY = "verse-within-session-id";
+const APP_VERSION = "analytics-v1";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase =
   supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+function randomId(prefix) {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${prefix}-${id}`;
+}
+
+function storedId(storage, key, prefix) {
+  const existing = storage.getItem(key);
+  if (existing) return existing;
+  const next = randomId(prefix);
+  storage.setItem(key, next);
+  return next;
+}
+
+function getAnonymousId() {
+  return storedId(localStorage, ANALYTICS_ANONYMOUS_KEY, "anon");
+}
+
+function getSessionId() {
+  return storedId(sessionStorage, ANALYTICS_SESSION_KEY, "session");
+}
+
+function deviceType() {
+  if (typeof window === "undefined") return "unknown";
+  if (window.innerWidth < 641) return "mobile";
+  if (window.innerWidth < 981) return "tablet";
+  return "desktop";
+}
 
 const labels = {
   zh: {
@@ -97,6 +131,8 @@ const labels = {
     moreActions: "更多操作",
     deleteVerse: "删除经文",
     deleteConfirm: "确定删除这节经文吗？",
+    previousVerse: "上一节经文",
+    nextVerseLabel: "下一节经文",
     check: "检查",
     next: "下一节",
     again: "再练一次",
@@ -217,6 +253,8 @@ const labels = {
     moreActions: "More actions",
     deleteVerse: "Delete verse",
     deleteConfirm: "Delete this verse?",
+    previousVerse: "Previous verse",
+    nextVerseLabel: "Next verse",
     check: "Check",
     next: "Next verse",
     again: "Practice again",
@@ -337,6 +375,8 @@ const labels = {
     moreActions: "더 보기",
     deleteVerse: "구절 삭제",
     deleteConfirm: "이 구절을 삭제할까요?",
+    previousVerse: "이전 구절",
+    nextVerseLabel: "다음 구절",
     check: "확인",
     next: "다음 구절",
     again: "다시 연습",
@@ -793,6 +833,39 @@ function mergeVerseLists(localVerses, cloudVerses) {
   );
 }
 
+function stableObject(value = {}) {
+  return Object.fromEntries(Object.entries(value || {}).sort(([a], [b]) => a.localeCompare(b)));
+}
+
+function comparableVerse(verse) {
+  return {
+    key: verseKey(verse),
+    reference: verse.reference || "",
+    language: verse.language || "",
+    collection: verse.collection || "",
+    text: verse.text || "",
+    status: isCompleted(verse) ? "completed" : isActiveAssignment(verse) ? "active" : "library",
+    completedAt: verse.completedAt || null,
+    progress: {
+      level: verse.progress?.level || 0,
+      accuracy: verse.progress?.accuracy || 0,
+      attempts: verse.progress?.attempts || 0,
+      nextReview: verse.progress?.nextReview || "",
+    },
+    trouble: stableObject(verse.trouble),
+  };
+}
+
+function comparableVerseList(verses) {
+  return verses
+    .map(comparableVerse)
+    .sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function verseListsMatch(localVerses, cloudVerses) {
+  return JSON.stringify(comparableVerseList(localVerses)) === JSON.stringify(comparableVerseList(cloudVerses));
+}
+
 function verseToCloudRow(verse, userId) {
   const updatedAt = verse.updatedAt || verse.completedAt || verse.createdAt || new Date().toISOString();
   return {
@@ -840,6 +913,22 @@ function summarizeVerses(verses) {
   };
 }
 
+function analyticsVerseMeta(verse) {
+  if (!verse) return {};
+  return {
+    verseId: verse.id,
+    reference: verse.reference,
+    language: verse.language,
+    collection: verse.collection,
+    textLength: verse.text?.length || 0,
+    wordCount: wordIndexesFor(tokenize(verse.text || "", verse.language)).length,
+    progressLevel: verse.progress?.level || 0,
+    progressAccuracy: verse.progress?.accuracy || 0,
+    progressAttempts: verse.progress?.attempts || 0,
+    status: isCompleted(verse) ? "completed" : isActiveAssignment(verse) ? "active" : "library",
+  };
+}
+
 function App() {
   const [state, setState] = useState(loadState);
   const [authState, setAuthState] = useState({ loading: true, session: null, user: null });
@@ -859,11 +948,62 @@ function App() {
     language: "custom",
     text: "",
   });
+  const anonymousIdRef = useRef(getAnonymousId());
+  const sessionIdRef = useRef(getSessionId());
+  const openedRef = useRef(false);
+  const signedInTrackedRef = useRef(null);
 
   const t = labels[state.uiLanguage] || labels.en;
+
+  function trackEvent(eventName, eventProperties = {}) {
+    if (!supabase) return;
+    const payload = {
+      user_id: authState.user?.id || null,
+      anonymous_id: anonymousIdRef.current,
+      session_id: sessionIdRef.current,
+      event_name: eventName,
+      event_properties: {
+        uiLanguage: state.uiLanguage,
+        libraryLanguage: state.libraryLanguage,
+        activeTab: state.activeTab,
+        isSignedIn: Boolean(authState.user),
+        syncMode: syncState.mode,
+        verseCount: state.verses.length,
+        activeAssignmentCount: state.verses.filter((verse) => isActiveAssignment(verse)).length,
+        completedVerseCount: state.verses.filter((verse) => isCompleted(verse)).length,
+        ...eventProperties,
+      },
+      app_version: APP_VERSION,
+      path: window.location.pathname + window.location.hash,
+      device_type: deviceType(),
+    };
+    supabase.from("analytics_events").insert(payload).then(({ error }) => {
+      if (error) {
+        console.warn("Analytics event failed", error.message);
+      }
+    });
+  }
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (openedRef.current) return;
+    openedRef.current = true;
+    trackEvent("app_opened", {
+      initialVerseCount: state.verses.length,
+      hasSupabase: Boolean(supabase),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!authState.user || signedInTrackedRef.current === authState.user.id) return;
+    signedInTrackedRef.current = authState.user.id;
+    trackEvent("user_signed_in", {
+      provider: "google",
+    });
+  }, [authState.user?.id]);
 
   useEffect(() => {
     if (!supabase) {
@@ -909,9 +1049,28 @@ function App() {
       if (cancelled) return;
       if (error) {
         setSyncState((current) => ({ ...current, loading: false, mode: "local", error: t.syncError }));
+        trackEvent("cloud_progress_load_failed", { message: error.message });
         return;
       }
-      setSyncState({ mode: "pending", loading: false, cloudVerses: (data || []).map(cloudRowToVerse), lastSyncedAt: null, error: "" });
+      const cloudVerses = (data || []).map(cloudRowToVerse);
+      if (verseListsMatch(state.verses, cloudVerses)) {
+        trackEvent("cloud_progress_identical", {
+          cloudVerseCount: cloudVerses.length,
+        });
+        setSyncState({
+          mode: "synced",
+          loading: false,
+          cloudVerses,
+          lastSyncedAt: new Date().toISOString(),
+          error: "",
+        });
+        return;
+      }
+      trackEvent("sync_prompt_shown", {
+        deviceSummary: summarizeVerses(state.verses),
+        accountSummary: summarizeVerses(cloudVerses),
+      });
+      setSyncState({ mode: "pending", loading: false, cloudVerses, lastSyncedAt: null, error: "" });
     }
 
     loadCloudProgress();
@@ -961,16 +1120,68 @@ function App() {
   const showSyncChoice = Boolean(authState.user && syncState.mode === "pending" && !syncState.loading);
   const hasUnsyncedLocal = Boolean(authState.user && syncState.mode === "later");
 
+  function selectTab(tab) {
+    if (tab === state.activeTab) return;
+    trackEvent("tab_selected", {
+      fromTab: state.activeTab,
+      toTab: tab,
+    });
+    setState((current) => ({ ...current, activeTab: tab }));
+  }
+
+  function openAddVerse() {
+    trackEvent("add_verse_opened", {
+      fromTab: state.activeTab,
+    });
+    setShowForm(true);
+  }
+
+  function closeAddVerse() {
+    trackEvent("add_verse_cancelled", {
+      hasReference: Boolean(form.reference.trim()),
+      hasText: Boolean(form.text.trim()),
+      textLength: form.text.trim().length,
+      sourceLanguageSetting: form.language,
+    });
+    setShowForm(false);
+  }
+
+  function updateSearchQuery(value) {
+    const previousQuery = query;
+    setQuery(value);
+    const trimmed = value.trim();
+    if (!trimmed && previousQuery.trim()) {
+      trackEvent("library_search_cleared", {
+        previousLength: previousQuery.trim().length,
+      });
+    }
+    if (trimmed.length === 2 && previousQuery.trim().length < 2) {
+      trackEvent("library_search_started", {
+        queryLength: trimmed.length,
+        resultCount: filteredVerses.length,
+      });
+    }
+  }
+
   function updateUiLanguage(language) {
+    trackEvent("ui_language_changed", {
+      fromLanguage: state.uiLanguage,
+      toLanguage: language,
+    });
     setState((current) => ({ ...current, uiLanguage: language }));
   }
 
   function updateLibraryLanguage(language) {
+    trackEvent("library_language_changed", {
+      fromLanguage: state.libraryLanguage,
+      toLanguage: language,
+    });
     setState((current) => ({ ...current, libraryLanguage: language }));
   }
 
   async function signInWithGoogle() {
     if (!supabase) return;
+    trackEvent("sign_in_started", { provider: "google" });
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/` },
@@ -979,6 +1190,7 @@ function App() {
 
   async function signOut() {
     if (!supabase) return;
+    trackEvent("sign_out_clicked");
     await supabase.auth.signOut();
   }
 
@@ -1010,18 +1222,32 @@ function App() {
   }
 
   async function mergeLocalWithAccount() {
+    trackEvent("sync_merge_clicked", {
+      deviceSummary,
+      accountSummary,
+    });
     const merged = mergeVerseLists(state.verses, syncState.cloudVerses);
     setState((current) => ({ ...current, verses: merged }));
-    await uploadVerses(merged);
+    const synced = await uploadVerses(merged);
+    trackEvent(synced ? "sync_merge_succeeded" : "sync_merge_failed", {
+      mergedSummary: summarizeVerses(merged),
+    });
   }
 
   function useAccountProgress() {
     if (!syncState.cloudVerses.length) return;
+    trackEvent("sync_use_account_clicked", {
+      accountSummary,
+    });
     setState((current) => ({ ...current, verses: syncState.cloudVerses }));
     setSyncState((current) => ({ ...current, mode: "synced", lastSyncedAt: new Date().toISOString(), error: "" }));
   }
 
   function decideLater() {
+    trackEvent("sync_decide_later_clicked", {
+      deviceSummary,
+      accountSummary,
+    });
     setSyncState((current) => ({ ...current, mode: "later", error: "" }));
   }
 
@@ -1050,11 +1276,29 @@ function App() {
     setClozeAnswers({});
     setDrillSeed((seed) => seed + 1);
     setResult(null);
+    trackEvent("verse_added", {
+      verseId: verse.id,
+      reference: verse.reference,
+      language: verse.language,
+      collection: verse.collection,
+      sourceLanguageSetting: form.language,
+      textLength: verse.text.length,
+      wordCount: wordIndexesFor(tokenize(verse.text, verse.language)).length,
+      status: verse.status,
+    });
   }
 
   async function removeVerse(id) {
     const target = state.verses.find((verse) => verse.id === id);
     if (!target || !window.confirm(t.deleteConfirm)) return;
+    trackEvent("verse_deleted", {
+      verseId: target.id,
+      reference: target.reference,
+      language: target.language,
+      collection: target.collection,
+      progress: target.progress,
+      status: isCompleted(target) ? "completed" : isActiveAssignment(target) ? "active" : "library",
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.filter((verse) => verse.id !== id),
@@ -1070,6 +1314,13 @@ function App() {
   }
 
   function resetTrouble(id) {
+    const target = state.verses.find((verse) => verse.id === id);
+    trackEvent("trouble_reset", {
+      verseId: target?.id,
+      reference: target?.reference,
+      language: target?.language,
+      troubleWordCount: target ? Object.keys(target.trouble || {}).length : 0,
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) => (verse.id === id ? { ...verse, trouble: {}, updatedAt: new Date().toISOString() } : verse)),
@@ -1077,6 +1328,9 @@ function App() {
   }
 
   function resetAllTrouble() {
+    trackEvent("all_trouble_reset", {
+      affectedVerseCount: state.verses.filter((verse) => Object.keys(verse.trouble || {}).length).length,
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) => ({ ...verse, trouble: {}, updatedAt: new Date().toISOString() })),
@@ -1085,6 +1339,15 @@ function App() {
 
   function completeAssignment(id) {
     const nextActive = activeAssignments.find((verse) => verse.id !== id);
+    const target = state.verses.find((verse) => verse.id === id);
+    trackEvent("verse_completed", {
+      verseId: target?.id,
+      reference: target?.reference,
+      language: target?.language,
+      collection: target?.collection,
+      progress: target?.progress,
+      hadNextActive: Boolean(nextActive),
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) =>
@@ -1110,6 +1373,14 @@ function App() {
 
   function removeFromWeek(id) {
     const nextActive = activeAssignments.find((verse) => verse.id !== id);
+    const target = state.verses.find((verse) => verse.id === id);
+    trackEvent("verse_removed_from_week", {
+      verseId: target?.id,
+      reference: target?.reference,
+      language: target?.language,
+      collection: target?.collection,
+      progress: target?.progress,
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) =>
@@ -1135,6 +1406,14 @@ function App() {
     const target = state.verses.find((verse) => verse.id === id);
     if (!target) return;
     if (isCompleted(target) && !window.confirm(t.reactivateWarning)) return;
+    trackEvent("verse_set_for_week", {
+      verseId: target.id,
+      reference: target.reference,
+      language: target.language,
+      collection: target.collection,
+      wasCompleted: isCompleted(target),
+      progress: target.progress,
+    });
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) =>
@@ -1157,9 +1436,20 @@ function App() {
     setResult(null);
   }
 
-  function recordPractice(nextResult) {
+  function recordPractice(nextResult, metadata = {}) {
     if (!selectedVerse) return;
     setResult(nextResult);
+    trackEvent("answer_checked", {
+      ...analyticsVerseMeta(selectedVerse),
+      practiceMode: metadata.practiceMode || nextResult.mode || mode,
+      recallInput: metadata.recallInput,
+      hideDensity: metadata.hideDensity,
+      clozeDensity: metadata.clozeDensity,
+      hintShown: metadata.showInitials,
+      accuracy: nextResult.accuracy,
+      troubleWordCount: Object.keys(nextResult.trouble || {}).length,
+      previousProgress: selectedVerse.progress,
+    });
     setState((current) => ({
       ...current,
       session: { ...current.session, lastPracticeDate: new Date().toISOString().slice(0, 10) },
@@ -1190,9 +1480,9 @@ function App() {
     }));
   }
 
-  function checkAnswer(nextResult) {
+  function checkAnswer(nextResult, metadata = {}) {
     if (!selectedVerse) return;
-    recordPractice(nextResult || scoreAnswer(answer, selectedVerse));
+    recordPractice(nextResult || scoreAnswer(answer, selectedVerse), metadata);
   }
 
   function nextVerse(direction = 1) {
@@ -1200,6 +1490,15 @@ function App() {
     if (!versePool.length) return;
     const index = versePool.findIndex((verse) => verse.id === selectedVerse?.id);
     const nextIndex = ((index === -1 ? 0 : index) + direction + versePool.length) % versePool.length;
+    const next = versePool[nextIndex];
+    trackEvent(direction > 0 ? "next_verse_clicked" : "previous_verse_clicked", {
+      fromVerseId: selectedVerse?.id,
+      fromReference: selectedVerse?.reference,
+      toVerseId: next?.id,
+      toReference: next?.reference,
+      pool: activeAssignments.length ? "active_assignments" : "all_verses",
+      poolSize: versePool.length,
+    });
     setSelectedId(versePool[nextIndex].id);
     setAnswer("");
     setClozeAnswers({});
@@ -1228,9 +1527,9 @@ function App() {
         </div>
 
         <nav className="tabs" aria-label="Primary">
-          <TabButton icon={<Sparkles size={18} />} label={t.practice} active={state.activeTab === "practice"} onClick={() => setState((current) => ({ ...current, activeTab: "practice" }))} />
-          <TabButton icon={<Library size={18} />} label={t.library} active={state.activeTab === "library"} onClick={() => setState((current) => ({ ...current, activeTab: "library" }))} />
-          <TabButton icon={<BarChart3 size={18} />} label={t.stats} active={state.activeTab === "stats"} onClick={() => setState((current) => ({ ...current, activeTab: "stats" }))} />
+          <TabButton icon={<Sparkles size={18} />} label={t.practice} active={state.activeTab === "practice"} onClick={() => selectTab("practice")} />
+          <TabButton icon={<Library size={18} />} label={t.library} active={state.activeTab === "library"} onClick={() => selectTab("library")} />
+          <TabButton icon={<BarChart3 size={18} />} label={t.stats} active={state.activeTab === "stats"} onClick={() => selectTab("stats")} />
         </nav>
 
         <div className="settings-panel">
@@ -1316,7 +1615,14 @@ function App() {
 
       <section className={`workspace workspace-${state.activeTab}`}>
         <header className="topbar">
-          <div>
+          <div className="topbar-title">
+            <div className="mobile-brand">
+              <img src="/brand/icon.svg" alt="" aria-hidden="true" />
+              <div>
+                <strong>{t.appName}</strong>
+                <span>{state.activeTab === "practice" ? t.practice : state.activeTab === "library" ? t.library : t.stats}</span>
+              </div>
+            </div>
             <h2>{state.activeTab === "practice" ? t.practice : state.activeTab === "library" ? t.library : t.stats}</h2>
           </div>
           <div className="topbar-actions">
@@ -1349,7 +1655,7 @@ function App() {
                 <span>{authState.user ? t.signOut : t.signInWithGoogle}</span>
               </button>
             ) : (
-              <button className="primary-button topbar-add" onClick={() => setShowForm(true)}>
+              <button className="primary-button topbar-add" onClick={openAddVerse}>
                 <Plus size={18} />
                 <span>{t.addVerse}</span>
               </button>
@@ -1385,7 +1691,7 @@ function App() {
                 </label>
               </div>
               <div className="form-actions">
-                <button type="button" className="ghost-button" onClick={() => setShowForm(false)}>
+                <button type="button" className="ghost-button" onClick={closeAddVerse}>
                   {t.cancel}
                 </button>
                 <button className="primary-button" type="submit">
@@ -1419,6 +1725,7 @@ function App() {
             completeAssignment={completeAssignment}
             isCompleted={selectedVerse ? isCompleted(selectedVerse) : false}
             hasActiveAssignments={activeAssignments.length > 0}
+            trackEvent={trackEvent}
           />
         )}
 
@@ -1427,7 +1734,7 @@ function App() {
             t={t}
             verses={filteredVerses}
             query={query}
-            setQuery={setQuery}
+            setQuery={updateSearchQuery}
             selectedId={selectedVerse?.id}
             setSelectedId={setSelectedId}
             removeVerse={removeVerse}
@@ -1438,7 +1745,8 @@ function App() {
             uiLanguage={state.uiLanguage}
             libraryLanguage={state.libraryLanguage}
             updateLibraryLanguage={updateLibraryLanguage}
-            setTab={(tab) => setState((current) => ({ ...current, activeTab: tab }))}
+            setTab={selectTab}
+            trackEvent={trackEvent}
           />
         )}
 
@@ -1510,6 +1818,7 @@ function PracticeView({
   completeAssignment,
   isCompleted,
   hasActiveAssignments,
+  trackEvent,
 }) {
   const recognitionRef = useRef(null);
   const clozeWrapRef = useRef(null);
@@ -1554,6 +1863,13 @@ function PracticeView({
   const troubleWords = Object.entries(verse.trouble).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
   function switchMode(nextMode) {
+    if (nextMode !== mode) {
+      trackEvent("practice_mode_selected", {
+        ...analyticsVerseMeta(verse),
+        fromMode: mode,
+        toMode: nextMode,
+      });
+    }
     setMode(nextMode);
     setAnswer("");
     setClozeAnswers({});
@@ -1578,19 +1894,37 @@ function PracticeView({
         liveAnswers[input.dataset.tokenIndex] = input.value;
       });
       setClozeAnswers(liveAnswers);
-      checkAnswer(scoreCloze(liveAnswers, tokens, blankIndexes));
+      checkAnswer(scoreCloze(liveAnswers, tokens, blankIndexes), {
+        practiceMode: mode,
+        clozeDensity,
+      });
       return;
     }
-    checkAnswer();
+    checkAnswer(undefined, {
+      practiceMode: mode,
+      recallInput: mode === "recall" ? recallInput : undefined,
+      hideDensity: mode === "hide" ? hideDensity : undefined,
+      showInitials,
+    });
   }
 
   function updateHideDensity(value) {
+    trackEvent("hide_difficulty_selected", {
+      ...analyticsVerseMeta(verse),
+      fromDensity: hideDensity,
+      toDensity: value,
+    });
     setHideDensity(value);
     setRevealedTokens(new Set());
     reshuffleDrill();
   }
 
   function updateClozeDensity(value) {
+    trackEvent("fill_difficulty_selected", {
+      ...analyticsVerseMeta(verse),
+      fromDensity: clozeDensity,
+      toDensity: value,
+    });
     setClozeDensity(value);
     setClozeAnswers({});
     setResult(null);
@@ -1598,6 +1932,12 @@ function PracticeView({
   }
 
   function goToNextStep() {
+    trackEvent("practice_step_advanced", {
+      ...analyticsVerseMeta(verse),
+      fromMode: mode,
+      hideDensity,
+      clozeDensity,
+    });
     if (mode === "read") {
       switchMode("hide");
       setHideDensity(0.25);
@@ -1626,6 +1966,12 @@ function PracticeView({
   }
 
   function toggleReveal(index) {
+    trackEvent("hidden_token_toggled", {
+      ...analyticsVerseMeta(verse),
+      tokenIndex: index,
+      willReveal: !revealedTokens.has(index),
+      hideDensity,
+    });
     setRevealedTokens((current) => {
       const next = new Set(current);
       if (next.has(index)) {
@@ -1639,6 +1985,10 @@ function PracticeView({
 
   function speakVerse() {
     if (!("speechSynthesis" in window)) return;
+    trackEvent("listen_clicked", {
+      ...analyticsVerseMeta(verse),
+      practiceMode: mode,
+    });
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(displayLine);
     utterance.lang = speechLanguage(verse.language);
@@ -1650,9 +2000,15 @@ function PracticeView({
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setSpeechError(t.speechUnsupported);
+      trackEvent("speech_recitation_unsupported", {
+        ...analyticsVerseMeta(verse),
+      });
       return;
     }
     if (isListening && recognitionRef.current) {
+      trackEvent("speech_recitation_stopped", {
+        ...analyticsVerseMeta(verse),
+      });
       recognitionRef.current.stop();
       return;
     }
@@ -1661,6 +2017,9 @@ function PracticeView({
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onstart = () => {
+      trackEvent("speech_recitation_started", {
+        ...analyticsVerseMeta(verse),
+      });
       setIsListening(true);
       setSpeechError("");
       setAnswer("");
@@ -1668,6 +2027,9 @@ function PracticeView({
     recognition.onerror = () => {
       setIsListening(false);
       setSpeechError(t.speechUnsupported);
+      trackEvent("speech_recitation_error", {
+        ...analyticsVerseMeta(verse),
+      });
     };
     recognition.onend = () => setIsListening(false);
     recognition.onresult = (event) => {
@@ -1679,6 +2041,39 @@ function PracticeView({
     };
     recognitionRef.current = recognition;
     recognition.start();
+  }
+
+  function resetPracticeSession(source) {
+    trackEvent("practice_again_clicked", {
+      ...analyticsVerseMeta(verse),
+      practiceMode: mode,
+      source,
+    });
+    setAnswer("");
+    setClozeAnswers({});
+    setRevealedTokens(new Set());
+    setResult(null);
+    reshuffleDrill();
+  }
+
+  function selectRecallInput(input) {
+    if (input !== recallInput) {
+      trackEvent("recall_input_selected", {
+        ...analyticsVerseMeta(verse),
+        fromInput: recallInput,
+        toInput: input,
+      });
+    }
+    setRecallInput(input);
+  }
+
+  function toggleHint() {
+    trackEvent("hint_toggled", {
+      ...analyticsVerseMeta(verse),
+      practiceMode: mode,
+      willShow: !showInitials,
+    });
+    setShowInitials((current) => !current);
   }
 
   return (
@@ -1836,14 +2231,14 @@ function PracticeView({
         {mode === "recall" && (
           <div className="recall-controls">
             <div className="input-switch" aria-label={t.recall}>
-              <button className={recallInput === "type" ? "active" : ""} onClick={() => setRecallInput("type")}>
+              <button className={recallInput === "type" ? "active" : ""} onClick={() => selectRecallInput("type")}>
                 {t.type}
               </button>
-              <button className={recallInput === "speech" ? "active" : ""} onClick={() => setRecallInput("speech")}>
+              <button className={recallInput === "speech" ? "active" : ""} onClick={() => selectRecallInput("speech")}>
                 {t.speakAloud}
               </button>
             </div>
-            <button className={`hint-toggle ${showInitials ? "active" : ""}`} onClick={() => setShowInitials((current) => !current)}>
+            <button className={`hint-toggle ${showInitials ? "active" : ""}`} onClick={toggleHint}>
               <CircleHelp size={16} />
               <span>{t.hint}</span>
             </button>
@@ -1867,22 +2262,22 @@ function PracticeView({
         )}
 
         <div className="practice-actions">
-          <button className="icon-button" aria-label="Previous verse" onClick={() => nextVerse(-1)}>
+          <button className="icon-button desktop-action" aria-label={t.previousVerse} onClick={() => nextVerse(-1)}>
             <ChevronLeft size={20} />
           </button>
-          <button className="secondary-button" onClick={() => { setAnswer(""); setClozeAnswers({}); setRevealedTokens(new Set()); setResult(null); reshuffleDrill(); }}>
+          <button className="secondary-button desktop-action" onClick={() => resetPracticeSession("desktop_action")}>
             <RotateCcw size={18} />
             <span>{t.again}</span>
           </button>
-          <button className="secondary-button" onClick={speakVerse}>
+          <button className="secondary-button desktop-action" onClick={speakVerse}>
             <Volume2 size={18} />
             <span>{t.listen}</span>
           </button>
-          <button className="secondary-button" onClick={goToNextStep}>
+          <button className="secondary-button mobile-primary-action" onClick={goToNextStep}>
             <ChevronRight size={18} />
             <span>{t.nextStep}</span>
           </button>
-          <button className="secondary-button" disabled={isCompleted} onClick={() => completeAssignment(verse.id)}>
+          <button className="secondary-button desktop-action" disabled={isCompleted} onClick={() => completeAssignment(verse.id)}>
             <Check size={18} />
             <span>{isCompleted ? t.completed : t.markComplete}</span>
           </button>
@@ -1890,9 +2285,37 @@ function PracticeView({
             <Check size={18} />
             <span>{t.check}</span>
           </button>
-          <button className="icon-button" aria-label="Next verse" onClick={() => nextVerse(1)}>
+          <button className="icon-button desktop-action" aria-label={t.nextVerseLabel} onClick={() => nextVerse(1)}>
             <ChevronRight size={20} />
           </button>
+          <details className="practice-more-menu">
+            <summary aria-label={t.moreActions}>
+              <MoreVertical size={20} />
+              <span>{t.moreActions}</span>
+            </summary>
+            <div className="practice-more-list">
+              <button onClick={() => resetPracticeSession("more_menu")}>
+                <RotateCcw size={18} />
+                <span>{t.again}</span>
+              </button>
+              <button onClick={speakVerse}>
+                <Volume2 size={18} />
+                <span>{t.listen}</span>
+              </button>
+              <button disabled={isCompleted} onClick={() => completeAssignment(verse.id)}>
+                <Check size={18} />
+                <span>{isCompleted ? t.completed : t.markComplete}</span>
+              </button>
+              <button onClick={() => nextVerse(-1)}>
+                <ChevronLeft size={18} />
+                <span>{t.previousVerse}</span>
+              </button>
+              <button onClick={() => nextVerse(1)}>
+                <ChevronRight size={18} />
+                <span>{t.nextVerseLabel}</span>
+              </button>
+            </div>
+          </details>
         </div>
       </article>
 
@@ -1955,6 +2378,7 @@ function LibraryView({
   libraryLanguage,
   updateLibraryLanguage,
   setTab,
+  trackEvent,
 }) {
   return (
     <section className="library-view">
@@ -2002,6 +2426,9 @@ function LibraryView({
           <article className={`verse-row ${selectedId === verse.id ? "selected" : ""}`} key={verse.id}>
             <button
               onClick={() => {
+                trackEvent("library_verse_opened", {
+                  ...analyticsVerseMeta(verse),
+                });
                 setSelectedId(verse.id);
                 setTab("practice");
               }}

@@ -35,9 +35,35 @@ create table if not exists public.verse_progress (
   unique (user_id, reference, language)
 );
 
+create table if not exists public.analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  anonymous_id text not null,
+  session_id text not null,
+  event_name text not null,
+  event_properties jsonb not null default '{}'::jsonb,
+  app_version text,
+  path text,
+  device_type text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists analytics_events_created_at_idx
+on public.analytics_events (created_at desc);
+
+create index if not exists analytics_events_user_id_created_at_idx
+on public.analytics_events (user_id, created_at desc);
+
+create index if not exists analytics_events_anonymous_id_created_at_idx
+on public.analytics_events (anonymous_id, created_at desc);
+
+create index if not exists analytics_events_event_name_created_at_idx
+on public.analytics_events (event_name, created_at desc);
+
 alter table public.profiles enable row level security;
 alter table public.assignments enable row level security;
 alter table public.verse_progress enable row level security;
+alter table public.analytics_events enable row level security;
 
 create policy "profiles self access"
 on public.profiles
@@ -56,3 +82,13 @@ on public.verse_progress
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+create policy "analytics insert events"
+on public.analytics_events
+for insert
+with check (user_id is null or auth.uid() = user_id);
+
+create policy "analytics self read"
+on public.analytics_events
+for select
+using (auth.uid() = user_id);
