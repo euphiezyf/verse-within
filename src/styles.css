@@ -382,6 +382,20 @@ button:disabled {
   line-height: var(--line-body);
 }
 
+.auth-nudge-dialog {
+  width: min(32rem, 100%);
+}
+
+.auth-nudge-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+  border-radius: var(--radius-md);
+}
+
 .sync-compare {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

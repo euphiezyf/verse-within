@@ -29,6 +29,7 @@ import "./styles.css";
 const STORAGE_KEY = "verse-within-state-v1";
 const ANALYTICS_ANONYMOUS_KEY = "verse-within-anonymous-id";
 const ANALYTICS_SESSION_KEY = "verse-within-session-id";
+const AUTH_PROMPT_DISMISSED_KEY = "verse-within-auth-prompt-dismissed";
 const APP_VERSION = "analytics-v1";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -80,6 +81,9 @@ const labels = {
     uiLanguage: "Language",
     account: "Account",
     signInWithGoogle: "Sign in with Google",
+    protectProgressTitle: "备份你的背诵进度",
+    protectProgressBody: "你已经开始练习了。登录后可以把本机进度备份到账号，换设备也能继续；不登录也可以继续使用。",
+    keepLocal: "继续本地使用",
     signOut: "Sign out",
     cloudReady: "Cloud sync ready",
     cloudNotReady: "Add Supabase keys to connect cloud sync.",
@@ -202,6 +206,9 @@ const labels = {
     uiLanguage: "Language",
     account: "Account",
     signInWithGoogle: "Sign in with Google",
+    protectProgressTitle: "Back up your memory progress",
+    protectProgressBody: "You have started practicing. Sign in to back up this device and continue on other devices. You can keep using the app without signing in.",
+    keepLocal: "Keep using locally",
     signOut: "Sign out",
     cloudReady: "Cloud sync ready",
     cloudNotReady: "Add Supabase keys to connect cloud sync.",
@@ -324,6 +331,9 @@ const labels = {
     uiLanguage: "Language",
     account: "계정",
     signInWithGoogle: "Google로 로그인",
+    protectProgressTitle: "암송 진행도 백업",
+    protectProgressBody: "연습을 시작했습니다. 로그인하면 이 기기의 진행도를 계정에 백업하고 다른 기기에서도 이어갈 수 있습니다. 로그인하지 않아도 계속 사용할 수 있습니다.",
+    keepLocal: "이 기기에서 계속 사용",
     signOut: "로그아웃",
     cloudReady: "클라우드 동기화 준비됨",
     cloudNotReady: "Supabase 키를 넣으면 클라우드 연결이 됩니다.",
@@ -942,6 +952,7 @@ function App() {
   const [drillSeed, setDrillSeed] = useState(1);
   const [clozeDensity, setClozeDensity] = useState(0.25);
   const [result, setResult] = useState(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [form, setForm] = useState({
     reference: "",
     collection: "",
@@ -952,6 +963,7 @@ function App() {
   const sessionIdRef = useRef(getSessionId());
   const openedRef = useRef(false);
   const signedInTrackedRef = useRef(null);
+  const authPromptDismissedRef = useRef(localStorage.getItem(AUTH_PROMPT_DISMISSED_KEY) === "true");
 
   const t = labels[state.uiLanguage] || labels.en;
 
@@ -1129,6 +1141,27 @@ function App() {
     setState((current) => ({ ...current, activeTab: tab }));
   }
 
+  function maybePromptSignIn(trigger) {
+    if (!supabase || authState.user || authPromptDismissedRef.current || showAuthPrompt) return;
+    trackEvent("sign_in_prompt_shown", {
+      trigger,
+    });
+    setShowAuthPrompt(true);
+  }
+
+  function dismissAuthPrompt() {
+    authPromptDismissedRef.current = true;
+    localStorage.setItem(AUTH_PROMPT_DISMISSED_KEY, "true");
+    trackEvent("sign_in_prompt_dismissed");
+    setShowAuthPrompt(false);
+  }
+
+  function startSignInFromPrompt() {
+    trackEvent("sign_in_prompt_accepted");
+    setShowAuthPrompt(false);
+    signInWithGoogle();
+  }
+
   function openAddVerse() {
     trackEvent("add_verse_opened", {
       fromTab: state.activeTab,
@@ -1286,6 +1319,7 @@ function App() {
       wordCount: wordIndexesFor(tokenize(verse.text, verse.language)).length,
       status: verse.status,
     });
+    maybePromptSignIn("verse_added");
   }
 
   async function removeVerse(id) {
@@ -1348,6 +1382,7 @@ function App() {
       progress: target?.progress,
       hadNextActive: Boolean(nextActive),
     });
+    maybePromptSignIn("verse_completed");
     setState((current) => ({
       ...current,
       verses: current.verses.map((verse) =>
@@ -1450,6 +1485,7 @@ function App() {
       troubleWordCount: Object.keys(nextResult.trouble || {}).length,
       previousProgress: selectedVerse.progress,
     });
+    maybePromptSignIn("answer_checked");
     setState((current) => ({
       ...current,
       session: { ...current.session, lastPracticeDate: new Date().toISOString().slice(0, 10) },
@@ -1607,6 +1643,28 @@ function App() {
               </button>
               <button className="ghost-button" onClick={decideLater}>
                 <span>{t.syncLater}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showAuthPrompt && (
+        <div className="sync-overlay" role="dialog" aria-modal="true" aria-label={t.protectProgressTitle}>
+          <section className="sync-dialog auth-nudge-dialog">
+            <div className="auth-nudge-icon">
+              <BookOpen size={24} />
+            </div>
+            <div>
+              <h3>{t.protectProgressTitle}</h3>
+              <p>{t.protectProgressBody}</p>
+            </div>
+            <div className="sync-actions">
+              <button className="primary-button" onClick={startSignInFromPrompt} disabled={!supabase}>
+                <span>{t.signInWithGoogle}</span>
+              </button>
+              <button className="ghost-button" onClick={dismissAuthPrompt}>
+                <span>{t.keepLocal}</span>
               </button>
             </div>
           </section>
