@@ -10,6 +10,7 @@ import {
   CircleHelp,
   Library,
   Mic,
+  MoreVertical,
   Pencil,
   Plus,
   RotateCcw,
@@ -71,7 +72,11 @@ const labels = {
     collection: "分类",
     verseText: "经文内容",
     save: "保存",
+    saveAndPractice: "保存并开始背诵",
     cancel: "取消",
+    autoDetect: "自动识别",
+    pasteFirst: "先粘贴经文",
+    verseDetails: "经文信息",
     search: "搜索经文、出处或分类",
     read: "朗读",
     cloze: "填空",
@@ -79,6 +84,18 @@ const labels = {
     firstLetter: "首字母",
     recall: "默写",
     speech: "语音",
+    speakAloud: "大声背诵",
+    type: "打字",
+    hint: "提示",
+    nextStep: "下一步",
+    difficulty: "难度",
+    fill25: "挖空 25%",
+    fill50: "挖空 50%",
+    fill75: "挖空 75%",
+    fillAll: "全部挖空",
+    moreActions: "更多操作",
+    deleteVerse: "删除经文",
+    deleteConfirm: "确定删除这节经文吗？",
     check: "检查",
     next: "下一节",
     again: "再练一次",
@@ -115,13 +132,15 @@ const labels = {
     review: "复习",
     typeHere: "在这里输入你记得的内容",
     typeVerseAndRef: "默写经文，最后写上出处",
+    recitePrompt: "凭记忆大声背诵。系统会把听到的内容写在下方，方便你检查。",
+    transcriptLabel: "听写结果",
     referenceAtEnd: "背诵时出处放在末尾",
     listen: "听经文",
     startSpeaking: "开始背诵",
     stopSpeaking: "停止",
     speechUnsupported: "这个浏览器暂不支持语音识别，可先用键盘默写。",
     fillBlanks: "填写空格",
-    blankHint: "先填空，再进入首字母和完整默写。",
+    blankHint: "选择挖空比例，自由调整难度。",
     tapToReveal: "点击灰色方块临时显示该词，再点一次隐藏。",
     showAll: "全部显示",
     hide25: "隐藏 25%",
@@ -173,7 +192,11 @@ const labels = {
     collection: "Collection",
     verseText: "Verse text",
     save: "Save",
+    saveAndPractice: "Save and practice",
     cancel: "Cancel",
+    autoDetect: "Auto-detect",
+    pasteFirst: "Paste the verse first",
+    verseDetails: "Verse details",
     search: "Search verses, references, collections",
     read: "Read",
     cloze: "Fill",
@@ -181,6 +204,18 @@ const labels = {
     firstLetter: "First letter",
     recall: "Recall",
     speech: "Voice",
+    speakAloud: "Speak aloud",
+    type: "Type",
+    hint: "Hint",
+    nextStep: "Next step",
+    difficulty: "Difficulty",
+    fill25: "Fill 25%",
+    fill50: "Fill 50%",
+    fill75: "Fill 75%",
+    fillAll: "Fill all",
+    moreActions: "More actions",
+    deleteVerse: "Delete verse",
+    deleteConfirm: "Delete this verse?",
     check: "Check",
     next: "Next verse",
     again: "Practice again",
@@ -217,13 +252,15 @@ const labels = {
     review: "Review",
     typeHere: "Type what you remember",
     typeVerseAndRef: "Write the verse, then the reference at the end",
+    recitePrompt: "Recite from memory. What the app hears will appear below so you can check it.",
+    transcriptLabel: "What the app heard",
     referenceAtEnd: "Reference belongs at the end",
     listen: "Listen",
     startSpeaking: "Start reciting",
     stopSpeaking: "Stop",
     speechUnsupported: "Speech recognition is not supported in this browser.",
     fillBlanks: "Fill the blanks",
-    blankHint: "Fill blanks first, then move to initials and full recall.",
+    blankHint: "Choose how much to blank out and adjust the difficulty freely.",
     tapToReveal: "Tap a gray block to reveal the word, then tap again to hide it.",
     showAll: "Show all",
     hide25: "Hide 25%",
@@ -275,7 +312,11 @@ const labels = {
     collection: "분류",
     verseText: "말씀",
     save: "저장",
+    saveAndPractice: "저장하고 연습",
     cancel: "취소",
+    autoDetect: "자동 감지",
+    pasteFirst: "먼저 말씀 붙여넣기",
+    verseDetails: "구절 정보",
     search: "구절, 본문, 분류 검색",
     read: "읽기",
     cloze: "빈칸",
@@ -283,6 +324,18 @@ const labels = {
     firstLetter: "첫 글자",
     recall: "암기 입력",
     speech: "음성",
+    speakAloud: "소리 내어 암송",
+    type: "타이핑",
+    hint: "힌트",
+    nextStep: "다음 단계",
+    difficulty: "난이도",
+    fill25: "25% 빈칸",
+    fill50: "50% 빈칸",
+    fill75: "75% 빈칸",
+    fillAll: "전체 빈칸",
+    moreActions: "더 보기",
+    deleteVerse: "구절 삭제",
+    deleteConfirm: "이 구절을 삭제할까요?",
     check: "확인",
     next: "다음 구절",
     again: "다시 연습",
@@ -319,13 +372,15 @@ const labels = {
     review: "복습",
     typeHere: "기억나는 내용을 입력하세요",
     typeVerseAndRef: "말씀을 쓰고 마지막에 본문을 쓰세요",
+    recitePrompt: "기억나는 대로 소리 내어 암송하세요. 인식된 내용이 아래에 표시되어 확인할 수 있습니다.",
+    transcriptLabel: "인식된 내용",
     referenceAtEnd: "본문은 마지막에 둡니다",
     listen: "듣기",
     startSpeaking: "암송 시작",
     stopSpeaking: "중지",
     speechUnsupported: "이 브라우저는 음성 인식을 지원하지 않습니다.",
     fillBlanks: "빈칸 채우기",
-    blankHint: "빈칸부터 시작해 첫 글자와 전체 암송으로 이동하세요.",
+    blankHint: "빈칸 비율을 선택해 난이도를 자유롭게 조절하세요.",
     tapToReveal: "회색 칸을 누르면 단어가 보이고, 다시 누르면 숨겨집니다.",
     showAll: "전체 표시",
     hide25: "25% 숨김",
@@ -795,11 +850,12 @@ function App() {
   const [answer, setAnswer] = useState("");
   const [clozeAnswers, setClozeAnswers] = useState({});
   const [drillSeed, setDrillSeed] = useState(1);
+  const [clozeDensity, setClozeDensity] = useState(0.25);
   const [result, setResult] = useState(null);
   const [form, setForm] = useState({
     reference: "",
     collection: "",
-    language: "en",
+    language: "custom",
     text: "",
   });
 
@@ -987,7 +1043,7 @@ function App() {
     setState((current) => ({ ...current, verses: [verse, ...current.verses], activeTab: "practice" }));
     setSelectedId(verse.id);
     setShowForm(false);
-    setForm({ reference: "", collection: "", language: "en", text: "" });
+    setForm({ reference: "", collection: "", language: "custom", text: "" });
     setMode("read");
     setAnswer("");
     setClozeAnswers({});
@@ -997,6 +1053,7 @@ function App() {
 
   async function removeVerse(id) {
     const target = state.verses.find((verse) => verse.id === id);
+    if (!target || !window.confirm(t.deleteConfirm)) return;
     setState((current) => ({
       ...current,
       verses: current.verses.filter((verse) => verse.id !== id),
@@ -1256,20 +1313,35 @@ function App() {
         </div>
       )}
 
-      <section className="workspace">
+      <section className={`workspace workspace-${state.activeTab}`}>
         <header className="topbar">
           <div>
             <h2>{state.activeTab === "practice" ? t.practice : state.activeTab === "library" ? t.library : t.stats}</h2>
           </div>
-          <button className="primary-button" onClick={() => setShowForm(true)}>
-            <Plus size={18} />
-            <span>{t.addVerse}</span>
-          </button>
+          {state.activeTab === "stats" ? (
+            <button
+              className="secondary-button topbar-account"
+              disabled={!supabase && !authState.user}
+              onClick={authState.user ? signOut : signInWithGoogle}
+            >
+              <span>{authState.user ? t.signOut : t.signInWithGoogle}</span>
+            </button>
+          ) : (
+            <button className="primary-button topbar-add" onClick={() => setShowForm(true)}>
+              <Plus size={18} />
+              <span>{t.addVerse}</span>
+            </button>
+          )}
         </header>
 
         {showForm && (
           <section className="add-panel" aria-label={t.addVerse}>
             <form onSubmit={saveVerse}>
+              <label className="textarea-label primary-textarea">
+                <span>{t.pasteFirst}</span>
+                <textarea value={form.text} onChange={(event) => setForm({ ...form, text: event.target.value })} placeholder={t.pasteAny} />
+              </label>
+              <div className="form-section-title">{t.verseDetails}</div>
               <div className="form-grid">
                 <label>
                   <span>{t.reference}</span>
@@ -1282,24 +1354,20 @@ function App() {
                 <label>
                   <span>{t.language}</span>
                   <select value={form.language} onChange={(event) => setForm({ ...form, language: event.target.value })}>
+                    <option value="custom">{t.autoDetect}</option>
                     <option value="en">{t.en}</option>
                     <option value="zh">{t.zhName}</option>
                     <option value="ko">{t.ko}</option>
-                    <option value="custom">{t.custom}</option>
                   </select>
                 </label>
               </div>
-              <label className="textarea-label">
-                <span>{t.verseText}</span>
-                <textarea value={form.text} onChange={(event) => setForm({ ...form, text: event.target.value })} placeholder={t.pasteAny} />
-              </label>
               <div className="form-actions">
                 <button type="button" className="ghost-button" onClick={() => setShowForm(false)}>
                   {t.cancel}
                 </button>
                 <button className="primary-button" type="submit">
                   <Check size={18} />
-                  <span>{t.save}</span>
+                  <span>{t.saveAndPractice}</span>
                 </button>
               </div>
             </form>
@@ -1317,6 +1385,8 @@ function App() {
             clozeAnswers={clozeAnswers}
             setClozeAnswers={setClozeAnswers}
             drillSeed={drillSeed}
+            clozeDensity={clozeDensity}
+            setClozeDensity={setClozeDensity}
             reshuffleDrill={() => setDrillSeed((seed) => seed + 1)}
             result={result}
             setResult={setResult}
@@ -1406,6 +1476,8 @@ function PracticeView({
   clozeAnswers,
   setClozeAnswers,
   drillSeed,
+  clozeDensity,
+  setClozeDensity,
   reshuffleDrill,
   result,
   setResult,
@@ -1421,6 +1493,8 @@ function PracticeView({
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState("");
   const [hideDensity, setHideDensity] = useState(0.25);
+  const [recallInput, setRecallInput] = useState("type");
+  const [showInitials, setShowInitials] = useState(false);
   const [revealedTokens, setRevealedTokens] = useState(new Set());
 
   useEffect(() => {
@@ -1440,7 +1514,10 @@ function PracticeView({
 
   const displayLine = memoryLine(verse);
   const tokens = tokenize(displayLine, verse.language);
-  const blankIndexSet = drillIndexes(tokens, verse.progress.level, drillSeed);
+  const blankIndexSet =
+    clozeDensity === 1
+      ? new Set(wordIndexesFor(tokens))
+      : drillIndexes(tokens, verse.progress.level, drillSeed, 0, clozeDensity);
   const hideIndexSet =
     hideDensity === 0
       ? new Set()
@@ -1460,6 +1537,8 @@ function PracticeView({
     setResult(null);
     setSpeechError("");
     setRevealedTokens(new Set());
+    setShowInitials(false);
+    setRecallInput("type");
     if (nextMode === "cloze" || nextMode === "hide") {
       reshuffleDrill();
     }
@@ -1486,6 +1565,41 @@ function PracticeView({
     setHideDensity(value);
     setRevealedTokens(new Set());
     reshuffleDrill();
+  }
+
+  function updateClozeDensity(value) {
+    setClozeDensity(value);
+    setClozeAnswers({});
+    setResult(null);
+    reshuffleDrill();
+  }
+
+  function goToNextStep() {
+    if (mode === "read") {
+      switchMode("hide");
+      setHideDensity(0.25);
+      return;
+    }
+    if (mode === "hide") {
+      const next = hideDensity < 0.5 ? 0.5 : hideDensity < 0.75 ? 0.75 : hideDensity < 1 ? 1 : null;
+      if (next) {
+        updateHideDensity(next);
+      } else {
+        switchMode("cloze");
+        setClozeDensity(0.25);
+      }
+      return;
+    }
+    if (mode === "cloze") {
+      const next = clozeDensity < 0.5 ? 0.5 : clozeDensity < 0.75 ? 0.75 : clozeDensity < 1 ? 1 : null;
+      if (next) {
+        updateClozeDensity(next);
+      } else {
+        switchMode("recall");
+      }
+      return;
+    }
+    switchMode("read");
   }
 
   function toggleReveal(index) {
@@ -1559,13 +1673,23 @@ function PracticeView({
           </div>
         </div>
 
-        <div className="mode-switch" role="tablist" aria-label="Practice modes">
-          <button className={mode === "read" ? "active" : ""} onClick={() => switchMode("read")}>{t.read}</button>
-          <button className={mode === "cloze" ? "active" : ""} onClick={() => switchMode("cloze")}>{t.cloze}</button>
-          <button className={mode === "hide" ? "active" : ""} onClick={() => switchMode("hide")}>{t.hide}</button>
-          <button className={mode === "firstLetter" ? "active" : ""} onClick={() => switchMode("firstLetter")}>{t.firstLetter}</button>
-          <button className={mode === "recall" ? "active" : ""} onClick={() => switchMode("recall")}>{t.recall}</button>
-          <button className={mode === "speech" ? "active" : ""} onClick={() => switchMode("speech")}>{t.speech}</button>
+        <div className="mode-switch" role="tablist" aria-label="Practice stages">
+          {[
+            ["read", t.read],
+            ["hide", t.hide],
+            ["cloze", t.cloze],
+            ["recall", t.recall],
+          ].map(([stage, label]) => (
+            <button
+              aria-selected={mode === stage}
+              className={mode === stage ? "active" : ""}
+              key={stage}
+              onClick={() => switchMode(stage)}
+              role="tab"
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <div className={`verse-display verse-${verse.language}`}>
@@ -1577,31 +1701,45 @@ function PracticeView({
             </p>
           )}
           {mode === "cloze" && (
-            <div className="cloze-wrap" aria-label={t.fillBlanks} ref={clozeWrapRef}>
-              {tokens.map((token, index) =>
-                blankIndexSet.has(index) ? (
-                  <span
-                    className={`cloze-answer ${
-                      clozeFeedback.has(index) ? (clozeFeedback.get(index).correct ? "correct" : "incorrect") : ""
-                    }`}
-                    key={`${token}-${index}`}
-                  >
-                    <input
-                      data-token-index={index}
-                      value={clozeAnswers[index] || ""}
-                      onChange={(event) => updateClozeAnswer(index, event.target.value)}
-                      aria-label={`${t.fillBlanks}: ${index + 1}`}
-                      aria-invalid={clozeFeedback.has(index) && !clozeFeedback.get(index).correct}
-                      style={{ width: `${Math.min(Math.max(Array.from(token).length + 2, 4), 12)}ch` }}
-                    />
-                    {clozeFeedback.has(index) && !clozeFeedback.get(index).correct && (
-                      <small>{clozeFeedback.get(index).expected}</small>
-                    )}
-                  </span>
-                ) : (
-                  <span key={`${token}-${index}`}>{token}</span>
-                ),
-              )}
+            <div className="guided-hide">
+              <div className="hide-controls" aria-label={t.difficulty}>
+                {[
+                  [0.25, t.fill25],
+                  [0.5, t.fill50],
+                  [0.75, t.fill75],
+                  [1, t.fillAll],
+                ].map(([value, label]) => (
+                  <button className={clozeDensity === value ? "active" : ""} key={label} onClick={() => updateClozeDensity(value)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="cloze-wrap reveal-wrap" aria-label={t.fillBlanks} ref={clozeWrapRef}>
+                {tokens.map((token, index) =>
+                  blankIndexSet.has(index) ? (
+                    <span
+                      className={`cloze-answer ${
+                        clozeFeedback.has(index) ? (clozeFeedback.get(index).correct ? "correct" : "incorrect") : ""
+                      }`}
+                      key={`${token}-${index}`}
+                    >
+                      <input
+                        data-token-index={index}
+                        value={clozeAnswers[index] || ""}
+                        onChange={(event) => updateClozeAnswer(index, event.target.value)}
+                        aria-label={`${t.fillBlanks}: ${index + 1}`}
+                        aria-invalid={clozeFeedback.has(index) && !clozeFeedback.get(index).correct}
+                        style={{ width: `${Math.min(Math.max(Array.from(token).length + 2, 4), 12)}ch` }}
+                      />
+                      {clozeFeedback.has(index) && !clozeFeedback.get(index).correct && (
+                        <small>{clozeFeedback.get(index).expected}</small>
+                      )}
+                    </span>
+                  ) : (
+                    <span key={`${token}-${index}`}>{token}</span>
+                  ),
+                )}
+              </div>
             </div>
           )}
           {mode === "hide" && (
@@ -1646,7 +1784,8 @@ function PracticeView({
               <p className="practice-hint">{t.tapToReveal}</p>
             </div>
           )}
-          {mode === "firstLetter" && (
+          {mode === "recall" && recallInput !== "speech" && !showInitials && <p className="muted-script">{t.typeVerseAndRef}</p>}
+          {mode === "recall" && showInitials && (
             <div className="token-wrap">
               {tokens.map((token, index) => {
                 const clean = normalize(token);
@@ -1658,19 +1797,36 @@ function PracticeView({
               })}
             </div>
           )}
-          {mode === "recall" && <p className="muted-script">{t.typeVerseAndRef}</p>}
-          {mode === "speech" && (
+          {mode === "recall" && recallInput === "speech" && (
             <div className="speech-panel">
               <Mic size={34} />
-              <p>{t.typeVerseAndRef}</p>
+              <p>{t.recitePrompt}</p>
               {speechError && <span>{speechError}</span>}
+              <button className="primary-button speech-cta" onClick={toggleListening}>
+                {isListening ? <Square size={18} /> : <Mic size={18} />}
+                <span>{isListening ? t.stopSpeaking : t.startSpeaking}</span>
+              </button>
             </div>
           )}
         </div>
 
+        {mode === "recall" && (
+          <div className="input-switch" aria-label={t.recall}>
+            <button className={recallInput === "type" ? "active" : ""} onClick={() => setRecallInput("type")}>
+              {t.type}
+            </button>
+            <button className={recallInput === "speech" ? "active" : ""} onClick={() => setRecallInput("speech")}>
+              {t.speakAloud}
+            </button>
+            <button className={showInitials ? "active" : ""} onClick={() => setShowInitials((current) => !current)}>
+              {t.hint}
+            </button>
+          </div>
+        )}
+
         {mode !== "cloze" && (
           <label className="answer-box">
-            <span>{mode === "speech" ? t.speech : t.typeVerseAndRef}</span>
+            <span>{mode === "recall" && recallInput === "speech" ? t.transcriptLabel : t.typeVerseAndRef}</span>
             <textarea value={answer} onChange={(event) => setAnswer(event.target.value)} />
           </label>
         )}
@@ -1692,9 +1848,13 @@ function PracticeView({
             <RotateCcw size={18} />
             <span>{t.again}</span>
           </button>
-          <button className="secondary-button" onClick={mode === "speech" ? toggleListening : speakVerse}>
-            {mode === "speech" && isListening ? <Square size={18} /> : mode === "speech" ? <Mic size={18} /> : <Volume2 size={18} />}
-            <span>{mode === "speech" && isListening ? t.stopSpeaking : mode === "speech" ? t.startSpeaking : t.listen}</span>
+          <button className="secondary-button" onClick={speakVerse}>
+            <Volume2 size={18} />
+            <span>{t.listen}</span>
+          </button>
+          <button className="secondary-button" onClick={goToNextStep}>
+            <ChevronRight size={18} />
+            <span>{t.nextStep}</span>
           </button>
           <button className="secondary-button" disabled={isCompleted} onClick={() => completeAssignment(verse.id)}>
             <Check size={18} />
@@ -1838,17 +1998,21 @@ function LibraryView({
               <Check size={16} />
               <span>{isActiveAssignment(verse) ? t.removeFromWeek : t.setForWeek}</span>
             </button>
-            <button
-              className="secondary-button compact-button"
-              disabled={!isActiveAssignment(verse)}
-              onClick={() => completeAssignment(verse.id)}
-            >
-              <Check size={16} />
-              <span>{isCompleted(verse) ? t.completed : t.markComplete}</span>
-            </button>
-            <button className="icon-button danger" aria-label="Delete verse" onClick={() => removeVerse(verse.id)}>
-              <Trash2 size={18} />
-            </button>
+            <details className="row-menu">
+              <summary aria-label={t.moreActions}>
+                <MoreVertical size={18} />
+              </summary>
+              <div className="row-menu-list">
+                <button disabled={!isActiveAssignment(verse)} onClick={() => completeAssignment(verse.id)}>
+                  <Check size={16} />
+                  <span>{isCompleted(verse) ? t.completed : t.markComplete}</span>
+                </button>
+                <button className="danger" onClick={() => removeVerse(verse.id)}>
+                  <Trash2 size={16} />
+                  <span>{t.deleteVerse}</span>
+                </button>
+              </div>
+            </details>
           </article>
         ))}
       </div>
