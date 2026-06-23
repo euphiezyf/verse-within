@@ -4,7 +4,7 @@
 
 1. Push this repo to GitHub.
 2. Import the repo into Vercel.
-3. Set the build command to `pnpm build` or `pnpm exec vite build`.
+3. Set the build command to `npm run build`.
 4. Set the output directory to `dist`.
 5. Add environment variables from `.env.example`.
 6. Deploy.

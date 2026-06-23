@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { createClient } from "@supabase/supabase-js";
 import {
   BarChart3,
   BookOpen,
@@ -24,6 +25,10 @@ import {
 import "./styles.css";
 
 const STORAGE_KEY = "verse-within-state-v1";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase =
+  supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 const labels = {
   zh: {
@@ -37,6 +42,11 @@ const labels = {
     language: "Language",
     libraryLanguage: "Library language",
     uiLanguage: "Language",
+    account: "Account",
+    signInWithGoogle: "Sign in with Google",
+    signOut: "Sign out",
+    cloudReady: "Cloud sync ready",
+    cloudNotReady: "Add Supabase keys to connect cloud sync.",
     reference: "经文出处",
     collection: "分类",
     verseText: "经文内容",
@@ -114,6 +124,11 @@ const labels = {
     language: "Language",
     libraryLanguage: "Library language",
     uiLanguage: "Language",
+    account: "Account",
+    signInWithGoogle: "Sign in with Google",
+    signOut: "Sign out",
+    cloudReady: "Cloud sync ready",
+    cloudNotReady: "Add Supabase keys to connect cloud sync.",
     reference: "Reference",
     collection: "Collection",
     verseText: "Verse text",
@@ -191,6 +206,11 @@ const labels = {
     language: "언어",
     libraryLanguage: "구절함 언어",
     uiLanguage: "Language",
+    account: "계정",
+    signInWithGoogle: "Google로 로그인",
+    signOut: "로그아웃",
+    cloudReady: "클라우드 동기화 준비됨",
+    cloudNotReady: "Supabase 키를 넣으면 클라우드 연결이 됩니다.",
     reference: "본문",
     collection: "분류",
     verseText: "말씀",
@@ -595,6 +615,7 @@ function formatDateTime(value) {
 
 function App() {
   const [state, setState] = useState(loadState);
+  const [authState, setAuthState] = useState({ loading: true, session: null, user: null });
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedId, setSelectedId] = useState(state.verses[0]?.id);
@@ -614,6 +635,34 @@ function App() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthState({ loading: false, session: null, user: null });
+      return;
+    }
+
+    let mounted = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        setAuthState({ loading: false, session: data.session || null, user: data.session?.user || null });
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAuthState({ loading: false, session: null, user: null });
+      });
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthState({ loading: false, session, user: session?.user || null });
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   const filteredVerses = useMemo(() => {
     return state.verses.filter((verse) => {
@@ -650,6 +699,19 @@ function App() {
 
   function updateLibraryLanguage(language) {
     setState((current) => ({ ...current, libraryLanguage: language }));
+  }
+
+  async function signInWithGoogle() {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/` },
+    });
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
   }
 
   function saveVerse(event) {
@@ -855,6 +917,30 @@ function App() {
             <option value="en">{t.en}</option>
             <option value="ko">{t.ko}</option>
           </select>
+        </div>
+
+        <div className="auth-panel">
+          <div className="auth-panel-head">
+            <span>{t.account}</span>
+            <small>{supabase ? t.cloudReady : t.cloudNotReady}</small>
+          </div>
+          {authState.loading ? (
+            <div className="auth-status">...</div>
+          ) : authState.user ? (
+            <>
+              <div className="auth-user">
+                <strong>{authState.user.email || authState.user.user_metadata?.full_name || "Signed in"}</strong>
+                <small>{authState.user.user_metadata?.full_name || authState.user.email}</small>
+              </div>
+              <button className="secondary-button" onClick={signOut}>
+                <span>{t.signOut}</span>
+              </button>
+            </>
+          ) : (
+            <button className="primary-button auth-button" onClick={signInWithGoogle} disabled={!supabase}>
+              <span>{t.signInWithGoogle}</span>
+            </button>
+          )}
         </div>
       </section>
 
